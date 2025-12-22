@@ -1,4 +1,5 @@
 # far-cli
+======
 FAR (Float ARray) - the only language where every value is a floating point number array
 
 ## Basic concepts
@@ -21,6 +22,6 @@ Hello world:
 ```cpp
 , $
 ```
--# \*for the time being (iirc), `,` does NOT keep spaces
+###### \*for the time being (iirc), `,` does NOT keep spaces
 
 
