@@ -21,6 +21,6 @@ Hello world:
 ```cpp
 , $
 ```
-\* for the time being (iirc), `,` does NOT keep spaces
+-# \*for the time being (iirc), `,` does NOT keep spaces
 
 
