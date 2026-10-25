@@ -1,6 +1,6 @@
 # far-cli
 
-FAR (Float ARray) - the only language where every value is a floating point number array
+FAR (Float ARray) - the only language where everything is a floating point number array
 
 ## Basic concepts
 - There's a buffer and a stack.
