@@ -1,0 +1,17 @@
+[package]
+name = "far-cli"
+version = "0.1.0"
+edition = "2024"
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+
+[dependencies]
+ecow = "0.3.1"
+
+[[bin]]
+name = "farcli"
+path = "farcli.rs"
+
