@@ -1,9 +1,9 @@
+use ecow::string::ToEcoString;
+use ecow::{EcoString, EcoVec, eco_format, eco_vec};
 use std::convert::TryFrom;
 use std::fmt::Debug;
-use std::io::{stdin, stdout, Write};
+use std::io::{Write, stdin, stdout};
 use std::str::FromStr;
-use ecow::{EcoVec, EcoString, eco_vec, eco_format};
-use ecow::string::ToEcoString;
 
 fn main() {
     // growable stack of vectors (only datatype)
@@ -49,7 +49,7 @@ fn main() {
             "#quit" | "#q" | "\0" => {
                 println!("[quit]");
                 break;
-            },
+            }
 
             // prints stack and buffer
             "#stats" | "#s" => {
@@ -57,14 +57,14 @@ fn main() {
                 println!("* Stack: {:?}", stack);
                 println!("* Buffer: {:?}\n", buffer);
                 continue;
-            },
+            }
 
             // clear screen
             "#clear" | "#cls" | "#c" => {
                 // clear screen control character
                 print!("{0}[2J{0}[1;1H", 27 as char);
                 continue;
-            },
+            }
 
             // reset the stack and the buffer
             "#reset" | "#r" => {
@@ -72,8 +72,8 @@ fn main() {
                 buffer = None;
                 println!();
                 continue;
-            },
-            
+            }
+
             _ => {}
         }
 
@@ -109,7 +109,7 @@ fn getinput(prompt: &str) -> Result<EcoString, EcoString> {
 // in a given optional buffer and a stack of
 // vectors
 fn interpret(
-    line: &str,                // reference cuz i won't modify nor own it lol
+    line: &str,                      // reference cuz i won't modify nor own it lol
     stack: &mut EcoVec<EcoVec<f64>>, // vec acts like a stack; gets values from buffer
     buffer: &mut Option<EcoVec<f64>>,
 ) -> Result<(), EcoString> {
@@ -119,14 +119,15 @@ fn interpret(
 
     // reserved characters
     // (includes categories cuz why not :3) ĸŀßðđŋħ
-    const COMMANDS: [char; 28] = [
-        ';', ':', '~', '@', // stack/buffer manipulation
+    const COMMANDS: [char; 30] = [
+        ';', ':', '~', '@', 'x', // stack/buffer manipulation
         ',', '%', '.', '$', // I/O
         '+', '-', '*', '/', '^', '\\', // arithmetic
         '=', '<', '>', // filters (clone-pop)
-        '&', '#', '|', 'o', // vec manipulation
-        '?', '!', '`', // codnitions (if false skip line)
+        '&', '#', '|', 'o', 'z', // vec manipulation
+        '?', '!', '_', // codnitions (if false skip line)
         '(', '[', ')', ']', // loops
+        '`', // stop interpreting line
     ];
 
     // split line by whitespaces until the
@@ -144,7 +145,7 @@ fn interpret(
     let mut cur = 0usize;
     while cur < splitted.len() {
         let unit = splitted[cur];
-        
+
         for (i, character) in unit.chars().enumerate() {
             // check if the unit contains any
             // "illegal" (or reserved) characters
@@ -156,7 +157,9 @@ fn interpret(
                 // i < 1 fixed it ._.
                 if character != '.' && !(character == '-' && i < 1) {
                     return Err(
-                        "reserved commands cannot appear as postfix, prefix or infix: ".to_eco_string() + unit,
+                        "reserved commands cannot appear as postfix, prefix or infix: "
+                            .to_eco_string()
+                            + unit,
                     );
                 }
             } else if !&character.is_ascii_digit()
@@ -173,10 +176,10 @@ fn interpret(
 
             // just a number = oll korrekt
         }
-        
+
         // if we're ignoring instructions, pause at these
         if ignore {
-            if ["?", "!", "`"].contains(&unit) {
+            if unit == "_" {
                 ignore = false;
             } else {
                 cur += 1;
@@ -186,6 +189,18 @@ fn interpret(
 
         // after checking unit, just interpret it
         match unit {
+            // nothing, just stops ignoring
+            "_" => {},
+            
+            // halt
+            "`" => Ok(()),
+            
+            // clear buffer
+            "~" => *buffer = None,
+
+            // pop stack and put it in buffer
+            "@" => *buffer = stack.pop(),
+
             // push
             ";" => match buffer {
                 Some(content) => {
@@ -200,13 +215,19 @@ fn interpret(
                 if let Some(last) = stack.last() {
                     stack.push(last.clone());
                 }
-            }
-
-            // clear buffer
-            "~" => *buffer = None,
-
-            // pop stack and put it in buffer
-            "@" => *buffer = stack.pop(),
+            },
+            
+            // swap buffer and stack's last element
+            // or stack's two last elements
+            "x" => match buffer {
+                Some(content) => {
+                    
+                },
+                
+                _ => {
+                    
+                },
+            },
 
             // pop and print as numbers
             "." => {
@@ -256,38 +277,40 @@ fn interpret(
             "," => {
                 let input = getinput("||:")?;
                 *buffer = Some(parseinput(&input, false));
-            },
-            
+            }
+
             "%" => {
                 //todo!("in the making");
                 let input = getinput("||:")?;
                 *buffer = Some(parseinput(&input, true));
-            },
+            }
 
             // if buffer and stack.last() aren't empty,
             // continue, else skip until ?, !, or `
             // (if true)
             "?" => {
                 //todo!("implement ? ` (if else) and ! ` (ifnot else) interpreting");
-                
+
                 let emptyvec = EcoVec::<f64>::new();
-                
+
                 if (buffer.is_none() || *buffer == Some(emptyvec.clone()))
-                    && (stack.last().is_none() || stack.last() == Some(&emptyvec)) {
-                        ignore = true;
-                    }
+                    && (stack.last().is_none() || stack.last() == Some(&emptyvec))
+                {
+                    ignore = true;
+                }
             }
 
             // the exact same as "?" but inverted
             // (if false)
             "!" => {
                 let emptyvec = EcoVec::<f64>::new();
-                
+
                 if !(buffer.is_none() || *buffer == Some(emptyvec.clone()))
-                    && !(stack.last().is_none() || stack.last() == Some(&emptyvec)) {
-                        ignore = true;
-                    }
-            },
+                    && !(stack.last().is_none() || stack.last() == Some(&emptyvec))
+                {
+                    ignore = true;
+                }
+            }
 
             // check both buffer and stack.pop or
             // stack.pop twice (no buffer), and
@@ -315,7 +338,7 @@ fn interpret(
                     if let Some(second) = stack.pop() {
                         *content = [&second[..], &content[..]].concat().into();
                     }
-                }
+                },
                 _ => {
                     if let Some(first) = stack.pop() {
                         if let Some(second) = stack.pop() {
@@ -337,36 +360,37 @@ fn interpret(
                     // newer [1] older [0 0 0] -> [1 0 0]
                     Some(content) => {
                         if let Some(second) = stack.pop()
-                            && content.len() < second.len() {
-                                *content = [&content[..], &second[content.len()..]].concat().into();
-                            }
-                        
-                    }
+                            && content.len() < second.len()
+                        {
+                            *content = [&content[..], &second[content.len()..]].concat().into();
+                        }
+                    },
                     _ => {
-                        if let Some(first) = stack.pop() 
-                            && let Some(second) = stack.pop() {
-                                // if there's two elements in the buffer
-                                if first.len() < second.len() {
-                                    *buffer = Some([&first[..], &second[first.len()..]].concat().into());
-                                }
+                        if let Some(first) = stack.pop()
+                            && let Some(second) = stack.pop()
+                        {
+                            // if there's two elements in the buffer
+                            if first.len() < second.len() {
+                                *buffer =
+                                    Some([&first[..], &second[first.len()..]].concat().into());
                             }
-                        
+                        }
                     }
                 }
             }
 
-            // separate last value from buffer or
-            // stack.pop into buffer and unpop
-            // modified stack value (if chosen)
+            // keep only last value from buffer or
+            // stack.pop
             "|" => {
                 if let Some(content) = buffer
-                    && let Some(value) = content.pop() {
-                        *buffer = Some(eco_vec![value]);
-                    }
-                else if let Some(mut content) = stack.pop()
-                    && let Some(value) = content.pop() {
-                        *buffer = Some(eco_vec![value]);
-                    }
+                    && let Some(value) = content.pop()
+                {
+                    *buffer = Some(eco_vec![value]);
+                } else if let Some(mut content) = stack.pop()
+                    && let Some(value) = content.pop()
+                {
+                    *buffer = Some(eco_vec![value]);
+                }
             }
 
             // round floats so that they resemble
@@ -494,48 +518,50 @@ fn interpret(
                 let emptyvec = EcoVec::<f64>::new();
                 if *buffer != Some(emptyvec.clone())
                     && stack.last() != Some(&emptyvec)
-                    && let Some(pos) = loops.pop() {
-                        cur = pos
-                    }
-            },
-            
+                    && let Some(pos) = loops.pop()
+                {
+                    cur = pos
+                }
+            }
+
             // loop if empty
             "]" => {
                 let emptyvec = EcoVec::<f64>::new();
                 if (buffer.is_none() || *buffer == Some(emptyvec.clone()))
                     && (stack.last().is_none() || stack.last() == Some(&emptyvec))
-                    && let Some(pos) = loops.pop() {
-                        cur = pos
-                    }
-            },
+                    && let Some(pos) = loops.pop()
+                {
+                    cur = pos
+                }
+            }
 
             // load an element or initialize buffer
             _ => {
                 let Ok(value) = f64::from_str(unit) else {
-                    return Err(eco_format!("parsing error!! can't parse {unit}"))
+                    return Err(eco_format!("parsing error!! can't parse {unit}"));
                 };
-                
+
                 match buffer {
                     // push parsed value if there's
                     // a buffer and isn't to be replaced
                     Some(content) => {
                         if cur.checked_sub(1).is_some()
-                            && splitted[cur - 1].chars().any(|c| c.is_ascii_digit()) {
-                                content.push(value)
-                            }
-                        else {
+                            && splitted[cur - 1].chars().any(|c| c.is_ascii_digit())
+                        {
+                            content.push(value)
+                        } else {
                             *buffer = Some(eco_vec![value]);
                         }
                     },
-                        
+
                     // initialize buffer with value
                     // if buffer's None
-                    _ => *buffer = Some(eco_vec![value])
+                    _ => *buffer = Some(eco_vec![value]),
                 }
             }
         }
-        
-        cur +=1;
+
+        cur += 1;
     }
 
     //println!("{:?}", &splitted);
@@ -577,9 +603,15 @@ fn parseinput(input: &str, keepspace: bool) -> EcoVec<f64> {
                 result.extend_from_slice(spaces.as_slice());
             }
         } else {
+            let chunkchars = if keepspace {
+                chunk.chars()
+            } else {
+                chunk.trim().chars()
+            }
+            
             // if chunk isn't a string repredentation
             // of a number, just take the char code
-            for (i, character) in chunk.trim().chars().enumerate() {
+            for (i, character) in chunkchars.enumerate() {
                 // "\10" -> '1' '0'
                 // "\ab" -> '\' 'a' 'b'
                 // "\\10" -> '\' 1' '0'
@@ -604,20 +636,17 @@ fn parseinput(input: &str, keepspace: bool) -> EcoVec<f64> {
                 // an u16 and only then into a f64
                 result.push(character as u16 as f64);
             }
-            
-            if keepspace {
-                let spaces = chunk[chunk.trim().len()..]
-                    .chars()
-                    .map(|c| c as u16 as f64)
-                    .collect::<EcoVec<f64>>();
-                result.extend_from_slice(spaces.as_slice());
-            }
+
+            //if keepspace {
+            //    let spaces = chunk[chunk.trim().len()..]
+            //        .chars()
+            //        .map(|c| c as u16 as f64)
+            //        .collect::<EcoVec<f64>>();
+            //    result.extend_from_slice(spaces.as_slice());
+            //}
         }
     }
 
-    // I'M DUMB THIS WAS GIVING AN ERROR CZ
-    // I PUT A = AFTER "&chunk in &splitted"
-    // WHY DIDN'T I SEE THAT LMAOOO ;v;
     result
 }
 
@@ -629,7 +658,10 @@ fn tryconvert(vec: EcoVec<f64>) -> Result<EcoString, EcoString> {
         if let Ok(code) = u8::try_from(element as i64) {
             result.push(char::from(code));
         } else {
-            return Err(eco_format!("invalid UTF-8 character code: {}", element as i64));
+            return Err(eco_format!(
+                "invalid UTF-8 character code: {}",
+                element as i64
+            ));
         }
     }
 
@@ -655,7 +687,8 @@ fn vecop(first: Option<EcoVec<f64>>, second: Option<EcoVec<f64>>, op: char) -> O
 
                 // map the second vec to that value
                 return Some(
-                    bigger.iter()
+                    bigger
+                        .iter()
                         .map(|x| match op {
                             '+' => x + val,
                             '-' => x - val,
@@ -670,7 +703,7 @@ fn vecop(first: Option<EcoVec<f64>>, second: Option<EcoVec<f64>>, op: char) -> O
                         .collect(),
                 );
             }
-            
+
             // make the operations as normal
             let mut res: EcoVec<f64> = eco_vec![];
             for (i, element) in vec1.iter().enumerate() {
@@ -680,7 +713,7 @@ fn vecop(first: Option<EcoVec<f64>>, second: Option<EcoVec<f64>>, op: char) -> O
                     res.push(*element);
                     continue;
                 }
-                
+
                 match op {
                     '+' => res.push(*element + vec2[i]),
                     '-' => res.push(*element - vec2[i]),
@@ -692,22 +725,22 @@ fn vecop(first: Option<EcoVec<f64>>, second: Option<EcoVec<f64>>, op: char) -> O
                         panic!("this should not happen");
                     }
                 }
-                
+
                 //println!("{:?}", result.last());
             }
-            
+
             // if there are values we haven't got to,
             // fill them in
             if res.len() < vec2.len() {
                 res.extend_from_slice(&vec2[res.len()..]);
             }
-            
+
             Some(res)
-        },
-        
+        }
+
         (Some(val), None) | (None, Some(val)) => Some(val.clone()),
-        
-        _ => None
+
+        _ => None,
     }
 }
 
